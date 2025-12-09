@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
     nixpkgsUnstable.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
     pre-commit-hooks.url = "github:cachix/git-hooks.nix";
@@ -50,6 +50,7 @@
             [
               R
               quarto
+              nodejs
             ]
             ++ (with pkgsUnstable; [
               air-formatter
@@ -58,6 +59,16 @@
               targets
               languageserver
               dotenv
+              # Package development tools
+              devtools
+              usethis
+              roxygen2
+              testthat
+              pkgload
+              rcmdcheck
+              # Package dependencies
+              cli
+              fs
             ]);
         };
       }

@@ -1,0 +1,21 @@
+Package: autotargets
+Title: Automatic targets Pipeline Generation
+Version: 0.1.0
+Authors@R:
+    person("Beau", "", role = c("aut", "cre"),
+           email = "beau@example.com")
+Description: Automatically generates targets pipelines by scanning R files for
+    functions and constants, mapping them to tar_target() definitions based on
+    function arguments. No AST analysis or manual DAG specification required.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    targets,
+    cli,
+    fs
+Suggests:
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3

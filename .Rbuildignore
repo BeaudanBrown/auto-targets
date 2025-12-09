@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^\.github$
+^flake\.nix$
+^flake\.lock$
+^\.envrc$
+^\.direnv$
+^\.Rlib$
+^\.mcp\.json$
+^\.pre-commit-config\.yaml$
