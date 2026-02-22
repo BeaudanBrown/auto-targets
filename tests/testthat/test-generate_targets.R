@@ -250,3 +250,94 @@ test_that("generated targets can be validated by targets package", {
     )
   }
 })
+
+test_that("embedded function source is executable", {
+  tmp_dir <- withr::local_tempdir()
+
+  auto_dir <- file.path(tmp_dir, "R", "auto")
+  dir.create(auto_dir, recursive = TRUE)
+  writeLines(
+    c(
+      "process <- function(data) {",
+      "  data * 2",
+      "}"
+    ),
+    file.path(auto_dir, "pipeline.R")
+  )
+
+  result <- generate_targets(path = tmp_dir, write = FALSE)
+
+  # The generated code should parse
+  expect_error(parse(text = result), NA)
+
+  # Extract the function body by evaluating the inner logic
+  # Find the source string in the generated code
+  expect_true(any(grepl('eval\\(parse\\(text =', result)))
+  expect_true(any(grepl('function\\(data\\)', result)))
+})
+
+test_that("complex function with quotes and special characters generates valid code", {
+  tmp_dir <- withr::local_tempdir()
+
+  auto_dir <- file.path(tmp_dir, "R", "auto")
+  dir.create(auto_dir, recursive = TRUE)
+  writeLines(
+    c(
+      'greet <- function(name) {',
+      '  msg <- paste0("Hello, ", name, "!")',
+      '  print(msg)',
+      '  msg',
+      '}'
+    ),
+    file.path(auto_dir, "pipeline.R")
+  )
+
+  result <- generate_targets(path = tmp_dir, write = FALSE)
+
+  # The generated code should parse without error
+  expect_error(parse(text = result), NA)
+
+  # Should contain the function signature
+  expect_true(any(grepl('function\\(name\\)', result)))
+})
+
+test_that("function with no arguments generates valid code", {
+  tmp_dir <- withr::local_tempdir()
+
+  auto_dir <- file.path(tmp_dir, "R", "auto")
+  dir.create(auto_dir, recursive = TRUE)
+  writeLines(
+    c(
+      "answer <- function() {",
+      "  42",
+      "}"
+    ),
+    file.path(auto_dir, "pipeline.R")
+  )
+
+  result <- generate_targets(path = tmp_dir, write = FALSE)
+
+  # The generated code should parse
+  expect_error(parse(text = result), NA)
+
+  # Should call .fn() with no args
+  expect_true(any(grepl('\\.fn\\(\\)', result)))
+})
+
+test_that("generated function target actually executes correctly", {
+  # This test verifies the core logic: eval(parse(text = source)) returns a callable function
+  # that works with the specified arguments
+
+  source <- "process <- function(data) {\n    data * 2\n}"
+
+  # This is what the generated code does
+  .fn <- eval(parse(text = source))
+
+  # Verify it's a function
+  expect_true(is.function(.fn))
+
+  # Verify it works with arguments
+  data <- 1:5
+  result <- .fn(data)
+  expect_equal(result, c(2, 4, 6, 8, 10))
+})

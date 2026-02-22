@@ -110,8 +110,11 @@ make_function_target <- function(name, formals, source) {
   arg_names <- names(formals)
 
   # Escape the source for embedding in string
-  source_escaped <- gsub('"', '\\"', source, fixed = TRUE)
+  source_escaped <- gsub('\\', '\\\\', source, fixed = TRUE)
+  source_escaped <- gsub('"', '\\"', source_escaped, fixed = TRUE)
   source_escaped <- gsub("\n", "\\n", source_escaped, fixed = TRUE)
+  source_escaped <- gsub("\r", "\\r", source_escaped, fixed = TRUE)
+  source_escaped <- gsub("\t", "\\t", source_escaped, fixed = TRUE)
 
   # Build the argument call
   if (is.null(arg_names) || length(arg_names) == 0) {
@@ -124,14 +127,14 @@ make_function_target <- function(name, formals, source) {
   if (is_file_target(name)) {
     paste0(
       '  tar_target(', name, ', {\n',
-      '    .fn <- eval(parse(text = "', source_escaped, '"))[[3]]\n',
+      '    .fn <- eval(parse(text = "', source_escaped, '"))\n',
       '    ', call_str, '\n',
       '  }, format = "file")'
     )
   } else {
     paste0(
       '  tar_target(', name, ', {\n',
-      '    .fn <- eval(parse(text = "', source_escaped, '"))[[3]]\n',
+      '    .fn <- eval(parse(text = "', source_escaped, '"))\n',
       '    ', call_str, '\n',
       '  })'
     )
