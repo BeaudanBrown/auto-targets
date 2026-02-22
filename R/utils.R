@@ -87,7 +87,7 @@ get_function_formals <- function(expr) {
 #' @return Character vector with two tar_target() call strings
 #' @keywords internal
 make_function_target <- function(name, formals) {
-  fn_target_name <- paste0(".fn_", name)
+  fn_target_name <- paste0(name, "_fn")
   arg_names <- names(formals)
 
   if (is.null(arg_names) || length(arg_names) == 0) {
