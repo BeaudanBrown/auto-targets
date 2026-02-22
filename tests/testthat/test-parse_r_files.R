@@ -100,7 +100,9 @@ test_that("parse_r_file parses a file correctly", {
   result <- parse_r_file(tmp)
 
   expect_equal(names(result$functions), "my_func")
-  expect_equal(names(result$functions$my_func), c("x", "y"))
+  expect_equal(names(result$functions$my_func), c("formals", "source"))
+  expect_equal(names(result$functions$my_func$formals), c("x", "y"))
+  expect_type(result$functions$my_func$source, "character")
   expect_equal(sort(result$constants), sort(c("my_const", "another_const")))
 })
 

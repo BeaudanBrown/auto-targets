@@ -73,44 +73,67 @@ get_function_formals <- function(expr) {
   as.list(func_expr[[2]])
 }
 
-#' Generate tar_target call strings for a function
+#' Get source code for an expression from parse data
 #'
-#' Creates two targets:
-#' 1. `name_fn` - the function object itself (changes when body changes)
-#' 2. `name` - the result of calling the function with its arguments
+#' @param expr An expression
+#' @param parse_data Parse data from getParseData()
+#' @param expr_index Index of the expression in the parse tree
+#' @return Character string with the source code
+#' @keywords internal
+get_expression_source <- function(expr, parse_data, expr_index) {
+  # Try to get source from parse data
+  if (!is.null(parse_data) && nrow(parse_data) > 0) {
+    # Find the top-level expression by looking for parent == 0
+    top_level <- parse_data[parse_data$parent == 0, ]
+    if (nrow(top_level) >= expr_index) {
+      row <- top_level[expr_index, ]
+      source_lines <- seq(row$line1, row$line2)
+      # We need the original file content - fall back to deparse
+    }
+  }
+  # Fall back to deparsing the expression
+  paste(deparse(expr), collapse = "\n")
+}
+
+#' Generate tar_target call string for a function
 #'
-#' Uses `get()` to fetch the function from the global environment to avoid
-#' targets interpreting the function name as a target dependency, which
-#' would create a cycle.
+#' Creates a single target that embeds the function source directly.
+#' This ensures that when the function body changes, the command changes
+#' and targets properly invalidates the target.
 #'
 #' @param name Function name
 #' @param formals List of formal arguments
-#' @return Character vector with two tar_target() call strings
+#' @param source Source code of the function (as string)
+#' @return Character string with tar_target() call
 #' @keywords internal
-make_function_target <- function(name, formals) {
-  fn_target_name <- paste0(name, "_fn")
+make_function_target <- function(name, formals, source) {
   arg_names <- names(formals)
 
-  if (is.null(arg_names) || length(arg_names) == 0) {
-    call_str <- paste0(fn_target_name, "()")
-  } else {
-    call_str <- paste0(fn_target_name, "(", paste(arg_names, collapse = ", "), ")")
-  }
+  # Escape the source for embedding in string
+  source_escaped <- gsub('"', '\\"', source, fixed = TRUE)
+  source_escaped <- gsub("\n", "\\n", source_escaped, fixed = TRUE)
 
-  # Use get() to fetch function from globalenv() to avoid targets
-  # interpreting the name as a target dependency (which would cause a cycle)
-  fn_get_cmd <- paste0('get("', name, '", envir = globalenv())')
+  # Build the argument call
+  if (is.null(arg_names) || length(arg_names) == 0) {
+    call_str <- ".fn()"
+  } else {
+    call_str <- paste0(".fn(", paste(arg_names, collapse = ", "), ")")
+  }
 
   # Check if this is a file target (name ends with _file)
   if (is_file_target(name)) {
-    c(
-      paste0("  tar_target(", fn_target_name, ", ", fn_get_cmd, ")"),
-      paste0("  tar_target(", name, ", ", call_str, ", format = \"file\")")
+    paste0(
+      '  tar_target(', name, ', {\n',
+      '    .fn <- eval(parse(text = "', source_escaped, '"))[[3]]\n',
+      '    ', call_str, '\n',
+      '  }, format = "file")'
     )
   } else {
-    c(
-      paste0("  tar_target(", fn_target_name, ", ", fn_get_cmd, ")"),
-      paste0("  tar_target(", name, ", ", call_str, ")")
+    paste0(
+      '  tar_target(', name, ', {\n',
+      '    .fn <- eval(parse(text = "', source_escaped, '"))[[3]]\n',
+      '    ', call_str, '\n',
+      '  })'
     )
   }
 }

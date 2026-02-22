@@ -1,14 +1,15 @@
 #' Parse an R file and extract function/constant/file definitions
 #'
 #' Scans an R file for top-level function definitions and constant assignments.
-#' Returns information about each definition including name and formal arguments.
+#' Returns information about each definition including name, formal arguments,
+#' and source code for functions.
 #'
 #' Constants with names ending in `_file` are classified as file targets.
 #'
 #' @param path Path to an R file
 #' @return A list with three elements:
 #'   - `functions`: Named list where names are function names and values are
-#'     lists of formal arguments
+#'     lists with `formals` and `source` elements
 #'   - `constants`: Character vector of constant names (excluding file targets)
 #'   - `files`: Character vector of file target names
 #' @keywords internal
@@ -29,15 +30,20 @@ parse_r_file <- function(path) {
     return(list(functions = list(), constants = character(), files = character()))
   }
 
+  # Get parse data for source extraction
+  parse_data <- getParseData(exprs)
+
   functions <- list()
   constants <- character()
   files <- character()
 
-  for (expr in exprs) {
+  for (i in seq_along(exprs)) {
+    expr <- exprs[[i]]
     if (is_function_def(expr)) {
       name <- get_assignment_name(expr)
       formals <- get_function_formals(expr)
-      functions[[name]] <- formals
+      source_code <- get_expression_source(expr, parse_data, i)
+      functions[[name]] <- list(formals = formals, source = source_code)
     } else if (is_constant_def(expr)) {
       name <- get_assignment_name(expr)
       if (is_file_target(name)) {

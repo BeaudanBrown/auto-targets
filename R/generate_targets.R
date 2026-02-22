@@ -48,8 +48,8 @@ generate_targets <- function(
 
   # Functions
   for (name in names(result$functions)) {
-    formals <- result$functions[[name]]
-    target_lines <- c(target_lines, make_function_target(name, formals))
+    func_info <- result$functions[[name]]
+    target_lines <- c(target_lines, make_function_target(name, func_info$formals, func_info$source))
   }
 
   # Then constants
