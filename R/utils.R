@@ -76,11 +76,12 @@ get_function_formals <- function(expr) {
 #' Generate tar_target call strings for a function
 #'
 #' Creates two targets:
-#' 1. `_fn_<name>` - the function object itself (changes when body changes)
-#' 2. `<name>` - the result of calling the function with its arguments
+#' 1. `name_fn` - the function object itself (changes when body changes)
+#' 2. `name` - the result of calling the function with its arguments
 #'
-#' This ensures that when a function's body is modified, downstream
-#' targets are properly invalidated.
+#' Uses `get()` to fetch the function from the global environment to avoid
+#' targets interpreting the function name as a target dependency, which
+#' would create a cycle.
 #'
 #' @param name Function name
 #' @param formals List of formal arguments
@@ -96,15 +97,19 @@ make_function_target <- function(name, formals) {
     call_str <- paste0(fn_target_name, "(", paste(arg_names, collapse = ", "), ")")
   }
 
+  # Use get() to fetch function from globalenv() to avoid targets
+  # interpreting the name as a target dependency (which would cause a cycle)
+  fn_get_cmd <- paste0('get("', name, '", envir = globalenv())')
+
   # Check if this is a file target (name ends with _file)
   if (is_file_target(name)) {
     c(
-      paste0("  tar_target(", fn_target_name, ", ", name, ")"),
+      paste0("  tar_target(", fn_target_name, ", ", fn_get_cmd, ")"),
       paste0("  tar_target(", name, ", ", call_str, ", format = \"file\")")
     )
   } else {
     c(
-      paste0("  tar_target(", fn_target_name, ", ", name, ")"),
+      paste0("  tar_target(", fn_target_name, ", ", fn_get_cmd, ")"),
       paste0("  tar_target(", name, ", ", call_str, ")")
     )
   }
