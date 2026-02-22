@@ -37,6 +37,18 @@ is_constant_def <- function(expr) {
   !is_function_def(expr)
 }
 
+#' Check if a name indicates a file target
+#'
+#' File targets are identified by the `_file` suffix convention.
+#' Variables named like `raw_data_file` will be treated as file targets.
+#'
+#' @param name Variable name
+#' @return Logical indicating if this should be a file target
+#' @keywords internal
+is_file_target <- function(name) {
+  grepl("_file$", name)
+}
+
 #' Get the name from an assignment expression
 #'
 #' @param expr An assignment expression
@@ -61,20 +73,41 @@ get_function_formals <- function(expr) {
   as.list(func_expr[[2]])
 }
 
-#' Generate tar_target call string for a function
+#' Generate tar_target call strings for a function
+#'
+#' Creates two targets:
+#' 1. `_fn_<name>` - the function object itself (changes when body changes)
+#' 2. `<name>` - the result of calling the function with its arguments
+#'
+#' This ensures that when a function's body is modified, downstream
+#' targets are properly invalidated.
 #'
 #' @param name Function name
 #' @param formals List of formal arguments
-#' @return Character string with tar_target() call
+#' @return Character vector with two tar_target() call strings
 #' @keywords internal
 make_function_target <- function(name, formals) {
+  fn_target_name <- paste0("_fn_", name)
   arg_names <- names(formals)
+
   if (is.null(arg_names) || length(arg_names) == 0) {
-    call_str <- paste0(name, "()")
+    call_str <- paste0(fn_target_name, "()")
   } else {
-    call_str <- paste0(name, "(", paste(arg_names, collapse = ", "), ")")
+    call_str <- paste0(fn_target_name, "(", paste(arg_names, collapse = ", "), ")")
   }
-  paste0("  tar_target(", name, ", ", call_str, ")")
+
+  # Check if this is a file target (name ends with _file)
+  if (is_file_target(name)) {
+    c(
+      paste0("  tar_target(", fn_target_name, ", ", name, ")"),
+      paste0("  tar_target(", name, ", ", call_str, ", format = \"file\")")
+    )
+  } else {
+    c(
+      paste0("  tar_target(", fn_target_name, ", ", name, ")"),
+      paste0("  tar_target(", name, ", ", call_str, ")")
+    )
+  }
 }
 
 #' Generate tar_target call string for a constant
@@ -84,6 +117,18 @@ make_function_target <- function(name, formals) {
 #' @keywords internal
 make_constant_target <- function(name) {
   paste0("  tar_target(", name, ", ", name, ")")
+}
+
+#' Generate tar_target call string for a file target
+#'
+#' File targets use `format = "file"` to track the file itself
+#' rather than the string value of the path.
+#'
+#' @param name File target name
+#' @return Character string with tar_target() call
+#' @keywords internal
+make_file_target <- function(name) {
+  paste0("  tar_target(", name, ", ", name, ", format = \"file\")")
 }
 
 #' Write generated targets file with header

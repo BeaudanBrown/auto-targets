@@ -41,7 +41,12 @@ generate_targets <- function(
   # Generate target lines
   target_lines <- character()
 
-  # Functions first
+  # Files first (inputs)
+  for (name in result$files) {
+    target_lines <- c(target_lines, make_file_target(name))
+  }
+
+  # Functions
   for (name in names(result$functions)) {
     formals <- result$functions[[name]]
     target_lines <- c(target_lines, make_function_target(name, formals))

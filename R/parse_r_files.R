@@ -1,13 +1,16 @@
-#' Parse an R file and extract function/constant definitions
+#' Parse an R file and extract function/constant/file definitions
 #'
 #' Scans an R file for top-level function definitions and constant assignments.
 #' Returns information about each definition including name and formal arguments.
 #'
+#' Constants with names ending in `_file` are classified as file targets.
+#'
 #' @param path Path to an R file
-#' @return A list with two elements:
+#' @return A list with three elements:
 #'   - `functions`: Named list where names are function names and values are
 #'     lists of formal arguments
-#'   - `constants`: Character vector of constant names
+#'   - `constants`: Character vector of constant names (excluding file targets)
+#'   - `files`: Character vector of file target names
 #' @keywords internal
 parse_r_file <- function(path) {
   if (!file.exists(path)) {
@@ -23,11 +26,12 @@ parse_r_file <- function(path) {
   )
 
   if (is.null(exprs)) {
-    return(list(functions = list(), constants = character()))
+    return(list(functions = list(), constants = character(), files = character()))
   }
 
   functions <- list()
   constants <- character()
+  files <- character()
 
   for (expr in exprs) {
     if (is_function_def(expr)) {
@@ -36,36 +40,42 @@ parse_r_file <- function(path) {
       functions[[name]] <- formals
     } else if (is_constant_def(expr)) {
       name <- get_assignment_name(expr)
-      constants <- c(constants, name)
+      if (is_file_target(name)) {
+        files <- c(files, name)
+      } else {
+        constants <- c(constants, name)
+      }
     }
   }
 
-  list(functions = functions, constants = constants)
+  list(functions = functions, constants = constants, files = files)
 }
 
 #' Scan a directory for R files and parse all of them
 #'
 #' @param dir Directory path to scan
 #' @param recursive Whether to scan subdirectories
-#' @return A list with two elements:
+#' @return A list with three elements:
 #'   - `functions`: Named list of all functions found
-#'   - `constants`: Character vector of all constant names
+#'   - `constants`: Character vector of all constant names (excluding files)
+#'   - `files`: Character vector of all file target names
 #' @keywords internal
 scan_auto_dir <- function(dir, recursive = FALSE) {
   if (!fs::dir_exists(dir)) {
     cli::cli_warn("Directory not found: {.file {dir}}")
-    return(list(functions = list(), constants = character()))
+    return(list(functions = list(), constants = character(), files = character()))
   }
 
   r_files <- fs::dir_ls(dir, regexp = "\\.[rR]$", recurse = recursive)
 
   if (length(r_files) == 0) {
     cli::cli_alert_info("No R files found in {.file {dir}}")
-    return(list(functions = list(), constants = character()))
+    return(list(functions = list(), constants = character(), files = character()))
   }
 
   all_functions <- list()
   all_constants <- character()
+  all_files <- character()
   seen_names <- character()
 
   for (file in r_files) {
@@ -92,10 +102,22 @@ scan_auto_dir <- function(dir, recursive = FALSE) {
       seen_names <- c(seen_names, name)
     }
     all_constants <- unique(c(all_constants, result$constants))
+
+    # Check for duplicate file target names
+    for (name in result$files) {
+      if (name %in% seen_names) {
+        cli::cli_warn(
+          "Duplicate definition of {.val {name}} in {.file {file}}; using latest"
+        )
+      }
+      seen_names <- c(seen_names, name)
+    }
+    all_files <- unique(c(all_files, result$files))
   }
 
-  # Remove constants that are also function names (function takes precedence)
+  # Remove constants and files that are also function names (function takes precedence)
   all_constants <- setdiff(all_constants, names(all_functions))
+  all_files <- setdiff(all_files, names(all_functions))
 
-  list(functions = all_functions, constants = all_constants)
+  list(functions = all_functions, constants = all_constants, files = all_files)
 }
