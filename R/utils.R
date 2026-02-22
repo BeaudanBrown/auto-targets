@@ -117,11 +117,14 @@ make_function_target <- function(name, formals) {
 
 #' Generate tar_target call string for a constant
 #'
+#' Uses `get()` to fetch the constant from globalenv() to avoid
+#' name conflicts where the constant name matches the target name.
+#'
 #' @param name Constant name
 #' @return Character string with tar_target() call
 #' @keywords internal
 make_constant_target <- function(name) {
-  paste0("  tar_target(", name, ", ", name, ")")
+  paste0('  tar_target(', name, ', get("', name, '", envir = globalenv()))')
 }
 
 #' Generate tar_target call string for a file target
@@ -129,11 +132,14 @@ make_constant_target <- function(name) {
 #' File targets use `format = "file"` to track the file itself
 #' rather than the string value of the path.
 #'
+#' Uses `get()` to fetch the constant from globalenv() to avoid
+#' name conflicts where the constant name matches the target name.
+#'
 #' @param name File target name
 #' @return Character string with tar_target() call
 #' @keywords internal
 make_file_target <- function(name) {
-  paste0("  tar_target(", name, ", ", name, ", format = \"file\")")
+  paste0('  tar_target(', name, ', get("', name, '", envir = globalenv()), format = "file")')
 }
 
 #' Write generated targets file with header
